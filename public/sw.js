@@ -36,61 +36,61 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch event - cache first for assets, network first for API
+// Fetch event - use network-first for JS/CSS to avoid serving stale vendor bundles,
+// cache-first for images/fonts, and network-first with cache fallback for other requests.
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip cross-origin requests
-  if (url.origin !== location.origin) {
+  // Only handle same-origin GET requests
+  if (request.method !== 'GET' || url.origin !== location.origin) {
     return;
   }
 
-  // Cache first strategy for static assets
-  if (
-    request.url.includes('.js') ||
-    request.url.includes('.css') ||
-    request.url.includes('.woff') ||
-    request.url.includes('.png') ||
-    request.url.includes('.jpg') ||
-    request.url.includes('.ico')
-  ) {
-    event.respondWith(
-      caches.match(request).then((response) => {
-        return response || fetch(request).then((response) => {
-          if (!response || response.status !== 200 || response.type === 'error') {
-            return response;
-          }
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, responseToCache);
-          });
-          return response;
-        });
-      })
-    );
-  } else {
-    // Network first for HTML and API calls
+  // Network-first for JS/CSS to avoid stale mismatches
+  if (request.destination === 'script' || request.destination === 'style' || request.url.endsWith('.js') || request.url.endsWith('.css')) {
     event.respondWith(
       fetch(request)
-        .then((response) => {
-          if (!response || response.status !== 200) {
-            return response;
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const copy = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
           }
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, responseToCache);
-          });
-          return response;
+          return networkResponse;
         })
-        .catch(() => {
-          return caches.match(request).then((response) => {
-            return response || new Response('Offline - resource not available', {
-              status: 503,
-              statusText: 'Service Unavailable',
-            });
-          });
-        })
+        .catch(() => caches.match(request).then((cached) => cached || caches.match('/index.html'))
     );
+    return;
   }
+
+  // Cache-first for images/fonts/icons (fast repeat visits)
+  if (request.destination === 'image' || request.destination === 'font' || request.url.match(/\.(png|jpg|jpeg|gif|svg|webp|ico|woff2?|ttf)$/)) {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        if (cached) return cached;
+        return fetch(request)
+          .then((resp) => {
+            if (!resp || resp.status !== 200) return resp;
+            const copy = resp.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+            return resp;
+          })
+          .catch(() => caches.match('/typehaki-icon.ico'));
+      })
+    );
+    return;
+  }
+
+  // Default: network-first then fallback to cache then index.html
+  event.respondWith(
+    fetch(request)
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const copy = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+        }
+        return networkResponse;
+      })
+      .catch(() => caches.match(request).then((cached) => cached || caches.match('/index.html')))
+  );
 });
