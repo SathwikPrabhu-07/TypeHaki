@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Layout } from "@/components/Layout";
@@ -6,42 +5,28 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ContestAccessVerifier } from "@/components/ContestAccessVerifier";
-import { getContestRegistration } from "@/lib/paymentService";
 import { Calendar, Clock, Users, Trophy, IndianRupee, AlertTriangle, Loader2, CheckCircle, AlertCircle, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
-import { useRound } from "@/hooks/useFirestore";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAttempt, useRegistration, useRound } from "@/hooks/useFirestore";
 
 export default function RoundDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { round, loading: roundLoading } = useRound(id || '');
-  const [registeredAccessCode, setRegisteredAccessCode] = useState<string | null>(null);
-  const [showAccessVerifier, setShowAccessVerifier] = useState(false);
-
-  useEffect(() => {
-    if (user && id) {
-      const registration = getContestRegistration(id, user.uid);
-      if (registration) {
-        setRegisteredAccessCode(registration.accessCode);
-      }
-    }
-  }, [user, id]);
+  const { registration } = useRegistration(id || '');
+  const { attempt, loading: attemptLoading } = useAttempt(id || '');
+  const isFreeRound = (round?.entryFee ?? 0) === 0;
+  const localAttemptKey = id ? `attempt_submitted_${id}` : null;
+  const isLocallySubmitted = typeof window !== 'undefined' && localAttemptKey ? Boolean(localStorage.getItem(localAttemptKey)) : false;
 
   const handleStartContest = () => {
-    if (registeredAccessCode) {
-      setShowAccessVerifier(true);
+    if ((registration || isFreeRound) && round?.status === "active" && !attempt && !isLocallySubmitted) {
+      navigate(`/typing-test?round=${id}`, { state: { roundId: id, contestMode: true } });
     }
-  };
-
-  const handleAccessGranted = () => {
-    // Redirect to typing test with contest mode
-    navigate(`/typing-test?round=${id}`, { state: { roundId: id, contestMode: true } });
   };
 
   const handleRegisterNow = () => {
+    if (!round) return;
     navigate("/payment", {
       state: { round },
     });
@@ -200,28 +185,7 @@ export default function RoundDetails() {
               </Card>
             </motion.div>
 
-            {/* Typing Text Preview */}
-            {round.typingText && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-              >
-                <Card className="border-border/50 bg-card/50">
-                  <CardHeader>
-                    <CardTitle className="text-xl">Typing Text</CardTitle>
-                    <CardDescription>
-                      This is what you'll be typing during the contest
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="bg-secondary/50 rounded-lg p-6 font-mono text-sm leading-relaxed">
-                      {round.typingText}
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            )}
+
           </div>
 
           {/* Sidebar - Registration/Payment */}
@@ -233,42 +197,43 @@ export default function RoundDetails() {
               className="sticky top-24 space-y-4"
             >
               {/* Registration Status Card */}
-              {registeredAccessCode ? (
+              {(registration || isFreeRound) ? (
                 <Card className="border-success/30 bg-success/5">
                   <CardHeader className="text-center">
                     <div className="flex justify-center mb-3">
                       <CheckCircle className="h-8 w-8 text-success" />
                     </div>
-                    <CardTitle className="text-lg">You're Registered!</CardTitle>
+                    <CardTitle className="text-lg">{isFreeRound ? "Free Entry Round" : "You're Registered!"}</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="bg-white dark:bg-slate-950 rounded p-3 text-center">
-                      <p className="text-xs text-muted-foreground mb-2">Your Access Code</p>
-                      <p className="text-2xl font-bold font-mono text-primary">
-                        {registeredAccessCode}
-                      </p>
-                    </div>
-                    {showAccessVerifier ? (
-                      <ContestAccessVerifier
-                        roundId={round.id}
-                        userId={user?.uid || ""}
-                        roundName={round.name}
-                        onAccessGranted={handleAccessGranted}
-                        onAccessDenied={(reason) => {
-                          console.error("Access denied:", reason);
-                          setShowAccessVerifier(false);
-                        }}
-                      />
+                    {round.status === "active" ? (
+                      <div className="space-y-2">
+                        <Button
+                          variant="hero"
+                          size="lg"
+                          className="w-full"
+                          onClick={handleStartContest}
+                                disabled={attemptLoading || !!attempt || isLocallySubmitted}
+                        >
+                                {isLocallySubmitted ? "Already Participated" : attempt ? "Already Participated" : "Enter Contest"}
+                        </Button>
+                        <Link to={`/leaderboard?round=${id}`} className="block">
+                          <Button variant="outline" size="lg" className="w-full">
+                            View Live Leaderboard
+                          </Button>
+                        </Link>
+                      </div>
                     ) : (
-                      <Button
-                        variant="hero"
-                        size="lg"
-                        className="w-full"
-                        onClick={handleStartContest}
-                        disabled={round.status !== "active"}
-                      >
-                        {round.status === "active" ? "Enter Contest" : "Contest Not Active"}
-                      </Button>
+                      <div className="bg-amber-50 dark:bg-amber-950/30 rounded-lg p-4 border border-amber-200 dark:border-amber-900">
+                        <p className="text-sm text-amber-900 dark:text-amber-100 font-medium">
+                          Contest not active yet
+                        </p>
+                        <p className="text-xs text-amber-800 dark:text-amber-200 mt-1">
+                          {isFreeRound
+                            ? "No registration required. You can enter when the contest status becomes active."
+                            : "You can enter when the contest status becomes active."}
+                        </p>
+                      </div>
                     )}
                   </CardContent>
                 </Card>
@@ -281,15 +246,14 @@ export default function RoundDetails() {
                         <div>
                           <p className="text-sm text-muted-foreground mb-1">Entry Fee</p>
                           <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-bold">₹{round.entryFee}</span>
-                            <span className="text-xs text-muted-foreground">one-time</span>
+                            <span className="text-3xl font-bold">{round.entryFee === 0 ? "Free" : `₹${round.entryFee}`}</span>
+                            <span className="text-xs text-muted-foreground">{round.entryFee === 0 ? "no payment required" : "one-time"}</span>
                           </div>
                         </div>
                         <div className="bg-secondary/50 rounded p-3 text-xs space-y-1">
                           <p className="text-muted-foreground">✓ Permanent access to contest</p>
-                          <p className="text-muted-foreground">✓ Unique access code</p>
                           <p className="text-muted-foreground">✓ Results & ranking</p>
-                          <p className="text-muted-foreground">✓ Pay via UPI, Card, Wallet</p>
+                          <p className="text-muted-foreground">{round.entryFee === 0 ? "✓ Instant free registration" : "✓ Pay via UPI"}</p>
                         </div>
                       </div>
                     </CardContent>
@@ -306,26 +270,38 @@ export default function RoundDetails() {
                   )}
 
                   {/* Registration Button */}
-                  <Button
-                    variant="hero"
-                    size="lg"
-                    className="w-full"
-                    onClick={handleRegisterNow}
-                    disabled={!isRegistrationOpen || isDeadlinePassed}
-                  >
-                    {isDeadlinePassed
-                      ? "Registration Closed"
-                      : isRegistrationOpen
-                      ? `Register - Pay ₹${round.entryFee}`
-                      : "Coming Soon"}
-                  </Button>
+                  {!isFreeRound && (
+                    <Button
+                      variant="hero"
+                      size="lg"
+                      className="w-full"
+                      onClick={handleRegisterNow}
+                      disabled={!isRegistrationOpen || isDeadlinePassed}
+                    >
+                      {isDeadlinePassed
+                        ? "Registration Closed"
+                        : isRegistrationOpen
+                        ? `Register - Pay Rs.${round.entryFee}`
+                        : "Coming Soon"}
+                    </Button>
+                  )}
 
                   {/* Payment Security Badge */}
-                  <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                    <CheckCircle className="h-3 w-3 text-success" />
-                    <span>Secure payment via Razorpay</span>
-                  </div>
+                  {round.entryFee > 0 && (
+                    <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                      <CheckCircle className="h-3 w-3 text-success" />
+                      <span>Secure payment via UPI</span>
+                    </div>
+                  )}
                 </>
+              )}
+
+              {round.status === "active" && (
+                <Link to={`/leaderboard?round=${id}`} className="block">
+                  <Button variant="outline" size="lg" className="w-full">
+                    View Live Leaderboard
+                  </Button>
+                </Link>
               )}
             </motion.div>
           </div>

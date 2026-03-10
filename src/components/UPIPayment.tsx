@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertCircle, QrCode } from 'lucide-react';
+import { AlertCircle, QrCode, Copy, Smartphone } from 'lucide-react';
 import { Alert, AlertDescription } from './ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 
@@ -16,7 +16,10 @@ export const UPIPayment: React.FC<UPIPaymentProps> = ({
 }) => {
     // Generate UPI deep link for mobile
     // Format: upi://pay?pa=UPI_ID&pn=NAME&am=AMOUNT&tn=NOTE
-    const upiLink = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(recipientName)}&am=${amount}&tn=Contest%20Registration`;
+    const amountStr = Number.isFinite(amount) ? amount.toFixed(2) : String(amount);
+    const upiLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(recipientName)}&am=${amountStr}&cu=INR&tn=Contest%20Registration`;
+    const qrUrl = "/upi-qr.png";
+    const isMobile = typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
     return (
         <div className="space-y-4 w-full">
@@ -39,14 +42,29 @@ export const UPIPayment: React.FC<UPIPaymentProps> = ({
                         </AlertDescription>
                     </Alert>
 
-                    {/* UPI Deep Link Button */}
-                    <a
-                        href={upiLink}
-                        className="w-full inline-flex items-center justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-                    >
-                        <QrCode className="w-4 h-4 mr-2" />
-                        Open in UPI App
-                    </a>
+                    {/* QR Code */}
+                    <div className="flex flex-col items-center gap-3">
+                        <img
+                            src={qrUrl}
+                            alt="UPI QR"
+                            className="h-60 w-60 rounded-lg border border-border bg-white p-2"
+                            loading="lazy"
+                        />
+                        <div className="text-xs text-muted-foreground text-center">
+                            Scan this QR from any UPI app to pay instantly.
+                        </div>
+                    </div>
+
+                    {/* UPI Deep Link Button (mobile) */}
+                    {isMobile && (
+                        <a
+                            href={upiLink}
+                            className="w-full inline-flex items-center justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                        >
+                            <Smartphone className="w-4 h-4 mr-2" />
+                            Open in UPI App
+                        </a>
+                    )}
 
                     {/* Manual UPI ID */}
                     <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
@@ -63,7 +81,10 @@ export const UPIPayment: React.FC<UPIPaymentProps> = ({
                                 }}
                                 className="px-3 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded text-sm font-medium transition-colors"
                             >
-                                Copy
+                                <span className="inline-flex items-center gap-2">
+                                    <Copy className="h-4 w-4" />
+                                    Copy
+                                </span>
                             </button>
                         </div>
                     </div>

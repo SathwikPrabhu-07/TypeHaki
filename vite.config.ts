@@ -26,17 +26,8 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       output: {
         manualChunks: (id) => {
-          if (id.includes('node_modules')) {
-            if (id.includes('firebase')) {
-              return 'firebase';
-            }
-            if (id.includes('@radix-ui')) {
-              return 'ui';
-            }
-            if (id.includes('react')) {
-              return 'react-vendor';
-            }
-            return 'vendor';
+          if (id.includes('node_modules') && id.includes('firebase')) {
+            return 'firebase';
           }
         },
       },

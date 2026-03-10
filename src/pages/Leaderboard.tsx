@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,9 +7,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Trophy, Medal, Award, Loader2 } from "lucide-react";
 import { useRounds, useLeaderboard } from "@/hooks/useFirestore";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLocation } from "react-router-dom";
 
 export default function Leaderboard() {
   const { user } = useAuth();
+  const location = useLocation();
   const { rounds, loading: roundsLoading } = useRounds();
   const [selectedRoundId, setSelectedRoundId] = useState<string>("");
   const { entries, loading: leaderboardLoading } = useLeaderboard(selectedRoundId);
@@ -33,11 +35,21 @@ export default function Leaderboard() {
     ? entries.findIndex((entry) => entry.userId === user?.uid) + 1
     : null;
 
-  // Auto-select first closed round if none selected
-  const closedRounds = rounds.filter(r => (r.status === 'closed' || r.status === 'active') && r.type === 'tournament');
-  
-  // Filter to show only tournament rounds
-  const tournamentRounds = rounds.filter(r => r.type === 'tournament');
+  useEffect(() => {
+    if (!rounds.length) return;
+    const params = new URLSearchParams(location.search);
+    const roundFromQuery = params.get("round");
+    if (roundFromQuery && rounds.some((r) => r.id === roundFromQuery) && selectedRoundId !== roundFromQuery) {
+      setSelectedRoundId(roundFromQuery);
+      return;
+    }
+    if (!selectedRoundId || !rounds.some((r) => r.id === selectedRoundId)) {
+      const defaultRound = rounds.find((r) => r.status === "active") || rounds[0];
+      if (defaultRound) {
+      setSelectedRoundId(defaultRound.id);
+      }
+    }
+  }, [location.search, rounds, selectedRoundId]);
 
   if (roundsLoading) {
     return (
@@ -71,7 +83,7 @@ export default function Leaderboard() {
               <CardTitle className="text-lg">Select Round</CardTitle>
             </CardHeader>
             <CardContent>
-              {tournamentRounds.length === 0 ? (
+              {rounds.length === 0 ? (
                 <p className="text-muted-foreground">No tournaments available yet.</p>
               ) : (
                 <select
@@ -80,7 +92,7 @@ export default function Leaderboard() {
                   onChange={(e) => setSelectedRoundId(e.target.value)}
                 >
                   <option value="">Select a tournament to view leaderboard...</option>
-                  {tournamentRounds.map((round) => (
+                  {rounds.map((round) => (
                     <option key={round.id} value={round.id}>
                       {round.name} ({round.status})
                     </option>

@@ -2,9 +2,12 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Admin email - single admin for TypeHaki
+    // Admin emails for TypeHaki
     function isAdmin() {
-      return request.auth != null && request.auth.token.email == 'sathwikprabhu07@gmail.com';
+      return request.auth != null && request.auth.token.email in [
+        'sathwikprabhu07@gmail.com',
+        'rishikonda678@gmail.com'
+      ];
     }
     
     function isAuthenticated() {
@@ -55,11 +58,17 @@ service cloud.firestore {
       allow create: if isAuthenticated() && 
         request.resource.data.userId == request.auth.uid;
       
-      // Only admin can update registrations (for payment status, etc.)
-      allow update: if isAdmin();
+      // Admin can update any registration
+      // Users can submit payment details for their own registration
+      allow update: if isAdmin() ||
+        (isAuthenticated() &&
+         resource.data.userId == request.auth.uid &&
+         request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['paymentId', 'paymentUpiId', 'paymentStatus']) &&
+         request.resource.data.paymentStatus == 'pending');
       
-      // No one can delete registrations
-      allow delete: if false;
+      // Only admin can delete registrations
+      allow delete: if isAdmin();
     }
     
     // Payments collection
@@ -82,10 +91,19 @@ service cloud.firestore {
       // Users can create attempts for themselves
       // One attempt per user per round is enforced in Cloud Functions
       allow create: if isAuthenticated() && 
-        request.resource.data.userId == request.auth.uid;
+        request.resource.data.userId == request.auth.uid &&
+        attemptId == request.resource.data.roundId + "_" + request.auth.uid &&
+        !exists(/databases/$(database)/documents/attempts/$(attemptId));
       
-      // No one can update or delete attempts
-      allow update, delete: if false;
+      // No one can update attempts; admin can delete
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    // Public payment config (keyId only). Admins can write.
+    match /config/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
     }
   }
 }
