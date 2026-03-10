@@ -286,7 +286,7 @@ Fields include:
 
 ---
 
-### registrations
+### Registrations
 
 Stores round participation data.
 
@@ -300,7 +300,7 @@ Fields include:
 
 ---
 
-### attempts
+### Attempts
 
 Stores competition performance results.
 
@@ -312,6 +312,122 @@ Fields include:
 * typed text
 * start time
 * submission time
+
+---
+
+# 🚀 Installation & Local Setup
+
+Follow these steps to run **TypeHaki Arena locally**.
+
+## 1️⃣ Clone the Repository
+
+```
+git clone https://github.com/SathwikPrabhu-07/TypeHaki
+cd TypeHaki
+```
+
+---
+
+## 2️⃣ Install Dependencies
+
+Make sure **Node.js (v18 or higher)** is installed.
+
+Then run:
+
+```
+npm install
+```
+
+---
+
+## 3️⃣ Configure Firebase
+
+Create a `.env` file in the root directory and add your Firebase configuration.
+
+Example:
+
+```
+VITE_FIREBASE_API_KEY=your_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+```
+
+You can obtain these values from:
+
+Firebase Console → Project Settings → Your Apps
+
+---
+
+## 4️⃣ Run Development Server
+
+Start the project locally:
+
+```
+npm run dev
+```
+
+The app will run at:
+
+```
+http://localhost:5173
+```
+
+---
+
+## 5️⃣ Deploy to Firebase Hosting
+
+Install Firebase CLI if not installed:
+
+```
+npm install -g firebase-tools
+```
+
+Login to Firebase:
+
+```
+firebase login
+```
+
+Deploy the project:
+
+```
+firebase deploy
+```
+
+---
+
+# 🧑‍💻 Admin Access
+
+Admin privileges are assigned based on email.
+
+Admin email:
+
+```
+(use the admin mail),ex:abcd@gmail.com
+```
+
+Logging in with this email enables access to:
+
+* Admin dashboard
+* Round creation
+* Competition management
+
+---
+
+# 📦 Project Structure
+
+```
+src/
+ ├── components/      # Reusable UI components
+ ├── pages/           # Application pages
+ ├── hooks/           # Firestore hooks
+ ├── contexts/        # Authentication context
+ ├── lib/             # Firebase configuration
+ └── App.tsx          # Main application routing
+```
 
 ---
 
@@ -376,4 +492,4 @@ The platform promotes **skill-based competition rather than chance-based gaming*
 
 TypeHaki Arena is a **competitive typing tournament platform built with React and Firebase** that allows college students to participate in scheduled typing competitions, compete on leaderboards using WPM and accuracy scores, and win rewards from entry-fee-funded prize pools.
 
-The project demonstrates a **full-stack architecture including authentication, real-time database integration, competition workflows, and leaderboard systems**, with future plans for payment integration, anti-cheat mechanisms, and automated tournament management.
+The project demonstrates a **full-stack architecture including authentication, real-time database integration, tournament workflows, and leaderboard systems**, with future plans for payment integration, anti-cheat safeguards, and automated competition management.
